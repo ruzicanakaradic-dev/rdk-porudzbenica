@@ -253,8 +253,8 @@ body{font-family:'Outfit',sans-serif;background:var(--cream-light);color:var(--n
 
 <script>
 const SHEET_ID = '1DYsLCakk2BdCkfYC2fSrr0esW6nMXYJkimZW19ADjiM';
-const PRODUCTS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Proizvodi&headers=4`;
-const CATEGORIES_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Kategorije&headers=4`;
+const PRODUCTS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Proizvodi&range=A4:F100&headers=1`;
+const CATEGORIES_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Kategorije&range=A4:E20&headers=1`;
 
 // Category images (hardcoded - these don't change often)
 const catImages = {
@@ -272,51 +272,45 @@ let cart = [];
 // Parse Google Sheets JSON response
 function parseGSheets(text) {
   const json = JSON.parse(text.substring(text.indexOf('(') + 1, text.lastIndexOf(')')));
-  const cols = json.table.cols.map(c => c.label || c.id);
-  console.log('Sheet cols:', cols);
-  console.log('Sheet rows:', json.table.rows.length);
   const result = [];
   json.table.rows.forEach(r => {
     if (!r.c) return;
-    const obj = {};
-    let hasData = false;
-    r.c.forEach((cell, i) => {
-      const val = cell ? (cell.v !== null ? cell.v : '') : '';
-      obj[cols[i]] = val;
-      if (val !== '') hasData = true;
-    });
-    if (hasData) result.push(obj);
+    const vals = r.c.map(cell => cell ? (cell.v !== null ? cell.v : '') : '');
+    if (vals.some(v => v !== '')) result.push(vals);
   });
-  console.log('Parsed rows:', result.length, result.slice(0,2));
   return result;
 }
 
 async function loadData() {
   try {
-    // Load categories
     const catResp = await fetch(CATEGORIES_URL);
     const catText = await catResp.text();
     const catRows = parseGSheets(catText);
     
-    // Load products
     const prodResp = await fetch(PRODUCTS_URL);
     const prodText = await prodResp.text();
     const prodRows = parseGSheets(prodText);
     
     // Build categories with products
+    // Kategorije tab: col0=Naziv, col1=Cena, col2=Min, col3=Aktivan, col4=Opis
+    // Proizvodi tab: col0=Kategorija, col1=Naziv, col2=Cena, col3=Min, col4=Aktivan, col5=Napomena
     categories = [];
     catRows.forEach(cr => {
-      if (cr['Aktivan'] !== 'DA') return;
-      const catName = cr['Naziv kategorije'];
+      const aktivan = String(cr[3] || '').trim();
+      if (aktivan !== 'DA') return;
+      const catName = String(cr[0] || '').trim();
+      if (!catName) return;
+      
       const prods = prodRows
-        .filter(p => p['Kategorija'] === catName && p['Aktivan'] === 'DA')
-        .map(p => p['Naziv proizvoda']);
+        .filter(p => String(p[0] || '').trim() === catName && String(p[4] || '').trim() === 'DA')
+        .map(p => String(p[1] || '').trim())
+        .filter(n => n);
       
       if (prods.length === 0) return;
       
-      const price = typeof cr['Cena (RSD/kg)'] === 'number' ? cr['Cena (RSD/kg)'] : parseInt(cr['Cena (RSD/kg)']);
-      const minRaw = cr['Min. porudžbina'] || '2 kg';
-      const minNum = parseFloat(minRaw);
+      const price = typeof cr[1] === 'number' ? cr[1] : parseInt(String(cr[1]).replace(/[^0-9]/g,''));
+      const minRaw = String(cr[2] || '2 kg');
+      const minNum = parseFloat(minRaw) || 2;
       const unit = minRaw.includes('box') ? 'box' : 'kg';
       
       categories.push({
@@ -330,10 +324,10 @@ async function loadData() {
       });
     });
     
+    if (categories.length === 0) throw new Error('No categories loaded');
     renderCategories();
   } catch (err) {
     console.error('Failed to load data:', err);
-    // Fallback to hardcoded data
     loadFallback();
   }
 }
