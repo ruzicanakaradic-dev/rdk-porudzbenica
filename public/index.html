@@ -270,16 +270,48 @@ let categories = [];
 let cart = [];
 
 // Parse Google Sheets JSON response
-function parseGSheets(text) {
+function parseGSheets(text, headerKey) {
   const json = JSON.parse(text.substring(text.indexOf('(') + 1, text.lastIndexOf(')')));
-  const cols = json.table.cols.map(c => c.label);
-  return json.table.rows.map(r => {
+  const rows = json.table.rows;
+  
+  // Find the header row by looking for the row that contains headerKey
+  let headerIdx = -1;
+  let headers = [];
+  
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r.c) continue;
+    const vals = r.c.map(cell => cell ? (cell.v !== null ? String(cell.v).trim() : '') : '');
+    if (vals.includes(headerKey)) {
+      headerIdx = i;
+      headers = vals;
+      break;
+    }
+  }
+  
+  if (headerIdx === -1) {
+    // Fallback: use column labels
+    headers = json.table.cols.map(c => c.label);
+    headerIdx = -1;
+  }
+  
+  // Parse data rows (everything after header)
+  const result = [];
+  const startRow = headerIdx + 1;
+  for (let i = startRow; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r.c) continue;
     const obj = {};
-    r.c.forEach((cell, i) => {
-      obj[cols[i]] = cell ? (cell.v !== null ? cell.v : '') : '';
+    let hasData = false;
+    r.c.forEach((cell, ci) => {
+      const key = headers[ci] || ('col' + ci);
+      const val = cell ? (cell.v !== null ? cell.v : '') : '';
+      obj[key] = val;
+      if (val !== '') hasData = true;
     });
-    return obj;
-  });
+    if (hasData && obj[headerKey]) result.push(obj);
+  }
+  return result;
 }
 
 async function loadData() {
@@ -287,12 +319,12 @@ async function loadData() {
     // Load categories
     const catResp = await fetch(CATEGORIES_URL);
     const catText = await catResp.text();
-    const catRows = parseGSheets(catText);
+    const catRows = parseGSheets(catText, 'Naziv kategorije');
     
     // Load products
     const prodResp = await fetch(PRODUCTS_URL);
     const prodText = await prodResp.text();
-    const prodRows = parseGSheets(prodText);
+    const prodRows = parseGSheets(prodText, 'Kategorija');
     
     // Build categories with products
     categories = [];
