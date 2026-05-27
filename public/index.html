@@ -253,8 +253,8 @@ body{font-family:'Outfit',sans-serif;background:var(--cream-light);color:var(--n
 
 <script>
 const SHEET_ID = '1DYsLCakk2BdCkfYC2fSrr0esW6nMXYJkimZW19ADjiM';
-const PRODUCTS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Proizvodi`;
-const CATEGORIES_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Kategorije`;
+const PRODUCTS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Proizvodi&headers=4`;
+const CATEGORIES_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Kategorije&headers=4`;
 
 // Category images (hardcoded - these don't change often)
 const catImages = {
@@ -270,47 +270,24 @@ let categories = [];
 let cart = [];
 
 // Parse Google Sheets JSON response
-function parseGSheets(text, headerKey) {
+function parseGSheets(text) {
   const json = JSON.parse(text.substring(text.indexOf('(') + 1, text.lastIndexOf(')')));
-  const rows = json.table.rows;
-  
-  // Find the header row by looking for the row that contains headerKey
-  let headerIdx = -1;
-  let headers = [];
-  
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i];
-    if (!r.c) continue;
-    const vals = r.c.map(cell => cell ? (cell.v !== null ? String(cell.v).trim() : '') : '');
-    if (vals.includes(headerKey)) {
-      headerIdx = i;
-      headers = vals;
-      break;
-    }
-  }
-  
-  if (headerIdx === -1) {
-    // Fallback: use column labels
-    headers = json.table.cols.map(c => c.label);
-    headerIdx = -1;
-  }
-  
-  // Parse data rows (everything after header)
+  const cols = json.table.cols.map(c => c.label || c.id);
+  console.log('Sheet cols:', cols);
+  console.log('Sheet rows:', json.table.rows.length);
   const result = [];
-  const startRow = headerIdx + 1;
-  for (let i = startRow; i < rows.length; i++) {
-    const r = rows[i];
-    if (!r.c) continue;
+  json.table.rows.forEach(r => {
+    if (!r.c) return;
     const obj = {};
     let hasData = false;
-    r.c.forEach((cell, ci) => {
-      const key = headers[ci] || ('col' + ci);
+    r.c.forEach((cell, i) => {
       const val = cell ? (cell.v !== null ? cell.v : '') : '';
-      obj[key] = val;
+      obj[cols[i]] = val;
       if (val !== '') hasData = true;
     });
-    if (hasData && obj[headerKey]) result.push(obj);
-  }
+    if (hasData) result.push(obj);
+  });
+  console.log('Parsed rows:', result.length, result.slice(0,2));
   return result;
 }
 
@@ -319,12 +296,12 @@ async function loadData() {
     // Load categories
     const catResp = await fetch(CATEGORIES_URL);
     const catText = await catResp.text();
-    const catRows = parseGSheets(catText, 'Naziv kategorije');
+    const catRows = parseGSheets(catText);
     
     // Load products
     const prodResp = await fetch(PRODUCTS_URL);
     const prodText = await prodResp.text();
-    const prodRows = parseGSheets(prodText, 'Kategorija');
+    const prodRows = parseGSheets(prodText);
     
     // Build categories with products
     categories = [];
