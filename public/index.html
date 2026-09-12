@@ -211,9 +211,9 @@ body{font-family:'Outfit',sans-serif;background:var(--cream-light);color:var(--n
         <div class="field"><label for="phone">Telefon (WhatsApp) <span class="req">*</span></label><input type="tel" id="phone" placeholder="+381 6x xxx xxxx"><span class="error-msg">Unesite broj telefona</span></div>
         <div class="field"><label for="delivery">Način preuzimanja <span class="req">*</span></label><select id="delivery" onchange="toggleDF()"><option value="" disabled selected>Izaberite...</option><option value="Beograd">Dostava — Beograd</option><option value="Novi Sad">Dostava — Novi Sad</option><option value="Indjija">Dostava — Inđija</option><option value="Licno">Lično preuzimanje</option></select><span class="error-msg">Izaberite način preuzimanja</span></div>
         <div class="field" id="addressField"><label for="address">Adresa za dostavu <span class="req">*</span></label><input type="text" id="address" placeholder="Ulica, broj, grad"><span class="error-msg">Unesite adresu</span></div>
-        <div class="field"><label for="date">Željeni datum isporuke <span class="req">*</span></label><input type="date" id="date"><p class="hint">Najranije 48h od momenta poručivanja</p><span class="error-msg">Izaberite datum</span></div>
+        <div class="field"><label for="date">Željeni datum isporuke <span class="req">*</span></label><input type="date" id="date"><p class="hint">Najranije 5 dana od momenta poručivanja</p><span class="error-msg">Izaberite datum</span></div>
         <div class="field"><label for="time">Željeno vreme isporuke</label><select id="time"><option value="">Izaberite okvirno vreme...</option><option value="09–12h">Pre podne (09–12h)</option><option value="12–15h">Rano popodne (12–15h)</option><option value="15–18h">Popodne (15–18h)</option><option value="18–20h">Uveče (18–20h)</option><option value="Dogovor">Po dogovoru</option></select><p class="hint">Tačno vreme potvrđujemo u poruci</p></div>
-        <div class="field" id="deliveryCostField"><label>Cena dostave</label><div class="delivery-info"><strong>Besplatna dostava</strong> za porudžbine preko 10.000 RSD.<br>Za manje porudžbine, cenu dostave dogovaramo u zavisnosti od lokacije.</div></div>
+        <div class="field" id="deliveryCostField"><label>Dostava i preuzimanje</label><div class="delivery-info"><strong>Lično preuzimanje</strong> — bez naknade, u dogovoreno vreme u našoj radnji.<br><strong>Dostava na adresu</strong> — uz naknadu za transport po dogovoru, u zavisnosti od lokacije.<br><strong>Besplatna dostava</strong> — za sve porudžbine veće od 10.000 RSD.</div></div>
         <div class="field"><label for="occasion">Povod (opciono)</label><select id="occasion"><option value="">Izaberite ako je primenjivo...</option><option value="Rođendan">Rođendan</option><option value="Slava">Slava</option><option value="Venčanje">Venčanje</option><option value="Krštenje">Krštenje</option><option value="Poklon">Poklon</option><option value="Porodično okupljanje">Porodično okupljanje</option><option value="Drugo">Drugo</option></select></div>
         <div class="field"><label for="notes">Napomena / posebne želje</label><textarea id="notes" placeholder="Alergije, natpis na torti, broj osoba..."></textarea></div>
         <div class="btn-row"><button class="btn btn-secondary" onclick="goStep(1)">← Nazad</button><button class="btn btn-primary" onclick="goStep(3)">Pregledajte →</button></div>
@@ -334,12 +334,12 @@ async function loadData() {
 
 function loadFallback() {
   categories = [
-    {id:'klasicne',name:'Klasične torte',price:2200,min:2,unit:'kg',img:catImages['Klasične torte'],items:['Reforma','Crni Egipat','Porodična čokoladna torta','Moskva šnit','Rafaelo','Esterhazi','Matilda torta']},
-    {id:'premium',name:'Premium torte',price:2500,min:2,unit:'kg',img:catImages['Premium torte'],items:['Ferrero Rocher','Doboš torta','Pistać Malina']},
-    {id:'raw',name:'Raw torte',price:3000,min:2,unit:'kg',img:catImages['Raw torte'],items:['Lešnik Borovnica','Pistać Malina','Čoko Oranž','Mango Raw Cake']},
-    {id:'sitni',name:'Sitni kolači',price:2200,min:3,unit:'kg',img:catImages['Sitni kolači'],items:['Classic Box (1kg — 30 kom.)','Celebration Box (2kg — 60 kom.)','Party Pack (3kg+)']},
-    {id:'minjoni',name:'Minjoni',price:2200,min:3,unit:'kg',img:catImages['Minjoni'],items:['Miks minjoni (Classic)','Čokoladni minjoni']},
-    {id:'monoporcije',name:'Premium monoporcije',price:3000,min:1,unit:'box',img:catImages['Premium monoporcije'],items:['Box 6 komada (miks premium ukusa)','Box 12 komada']}
+    {id:'klasicne',name:'Klasične torte',price:2500,min:2,unit:'kg',img:catImages['Klasične torte'],items:['Reforma','Crni Egipat','Porodična čokoladna torta','Moskva šnit','Rafaelo','Esterhazi','Matilda torta']},
+    {id:'premium',name:'Premium torte',price:2800,min:2,unit:'kg',img:catImages['Premium torte'],items:['Ferrero Rocher','Doboš torta','Pistać Malina']},
+    {id:'raw',name:'Raw torte',price:3500,min:2,unit:'kg',img:catImages['Raw torte'],items:['Lešnik Borovnica','Pistać Malina','Čoko Oranž','Mango Raw Cake']},
+    {id:'sitni',name:'Sitni kolači',price:2500,min:2,unit:'kg',img:catImages['Sitni kolači'],items:['Classic Box (1kg — 30 kom.)','Celebration Box (2kg — 60 kom.)','Party Pack (3kg+)']},
+    {id:'minjoni',name:'Minjoni',price:2500,min:2,unit:'kg',img:catImages['Minjoni'],items:['Miks minjoni (Classic)','Čokoladni minjoni']},
+    {id:'monoporcije',name:'Premium monoporcije',price:3500,min:1,unit:'box',img:catImages['Premium monoporcije'],items:['Box 6 komada (miks premium ukusa)','Box 12 komada']}
   ];
   renderCategories();
 }
@@ -423,7 +423,7 @@ function toggleDF(){
 
 function goStep(step) {
   if(step===2){if(cart.length===0){alert('Dodajte barem jedan proizvod.');return}
-    const md=new Date();md.setDate(md.getDate()+2);document.getElementById('date').min=md.toISOString().split('T')[0];
+    const md=new Date();md.setDate(md.getDate()+5);document.getElementById('date').min=md.toISOString().split('T')[0];
   }
   if(step===3){
     let ok=true;
