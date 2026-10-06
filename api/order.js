@@ -2,6 +2,38 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// Minimalni rok porudžbine u danima — isti broj stoji i u public/index.html
+const MIN_LEAD_DAYS = 5;
+
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'avg', 'sep', 'okt', 'nov', 'dec'];
+
+// Najraniji dozvoljeni datum isporuke (YYYY-MM-DD), računato po srpskom vremenu
+function minDeliveryDate() {
+  const now = new Date();
+  let y = now.getUTCFullYear(), m = now.getUTCMonth() + 1, d = now.getUTCDate();
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Belgrade', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(now);
+    const get = type => Number(parts.find(p => p.type === type).value);
+    y = get('year'); m = get('month'); d = get('day');
+  } catch (_) {}
+  return new Date(Date.UTC(y, m - 1, d + MIN_LEAD_DAYS)).toISOString().slice(0, 10);
+}
+
+// Da li je string stvaran kalendarski datum u formatu YYYY-MM-DD
+function isValidISODate(s) {
+  if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const t = Date.parse(s + 'T00:00:00Z');
+  return !isNaN(t) && new Date(t).toISOString().slice(0, 10) === s;
+}
+
+// 2026-10-11 -> "11. okt. 2026."
+function fmtDate(s) {
+  const [y, m, d] = s.split('-').map(Number);
+  return `${d}. ${MONTHS[m - 1]}. ${y}.`;
+}
+
 export default async function handler(req, res) {
   // CORS preflight
   if (req.method === 'OPTIONS') {
@@ -20,16 +52,29 @@ export default async function handler(req, res) {
       phone,
       delivery,
       address,
-      date,
+      dateISO,
       time,
       occasion,
       notes
     } = req.body;
 
     // Validate required fields
-    if (!cart || !cart.length || !name || !phone || !delivery || !date) {
+    if (!cart || !cart.length || !name || !phone || !delivery || !dateISO) {
       return res.status(400).json({ error: 'Nedostaju obavezni podaci.' });
     }
+
+    // Validate delivery date against the minimum lead time
+    if (!isValidISODate(dateISO)) {
+      return res.status(400).json({ error: 'Neispravan datum isporuke. Izaberite datum ponovo.' });
+    }
+    const minDate = minDeliveryDate();
+    if (dateISO < minDate) {
+      return res.status(400).json({
+        error: `Rok za porudžbinu je najmanje ${MIN_LEAD_DAYS} dana. Najraniji mogući datum isporuke je ${fmtDate(minDate)}`
+      });
+    }
+    // Datum u emailu se pravi od proverenog datuma, ne od teksta koji je poslao pregledač
+    const date = fmtDate(dateISO);
 
     // Build cart rows for email
     const cartRows = cart.map(item => `

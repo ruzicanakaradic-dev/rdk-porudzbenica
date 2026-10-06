@@ -421,13 +421,33 @@ function toggleDF(){
   document.getElementById('deliveryCostField').style.display=v==='Licno'?'none':'block';
 }
 
+// Minimalni rok porudžbine u danima — isti broj stoji i u api/order.js
+const MIN_LEAD_DAYS=5;
+
+// Najraniji dozvoljeni datum isporuke (YYYY-MM-DD), računato po srpskom vremenu
+function minDeliveryDate(){
+  const n=new Date();let y=n.getFullYear(),m=n.getMonth()+1,d=n.getDate();
+  try{const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Belgrade',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(n);const g=t=>+p.find(x=>x.type===t).value;y=g('year');m=g('month');d=g('day')}catch(e){}
+  return new Date(Date.UTC(y,m-1,d+MIN_LEAD_DAYS)).toISOString().split('T')[0];
+}
+
+// Proverava datum isporuke i prikazuje grešku na polju; vraća true ako je datum u redu
+function checkDate(){
+  const el=document.getElementById('date'),fd=el.closest('.field'),msg=fd.querySelector('.error-msg'),min=minDeliveryDate();
+  el.min=min;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(el.value)){msg.textContent='Izaberite datum';fd.classList.add('error');return false}
+  if(el.value<min){msg.textContent='Najraniji mogući datum je '+fmtDate(min);fd.classList.add('error');return false}
+  fd.classList.remove('error');return true;
+}
+
 function goStep(step) {
   if(step===2){if(cart.length===0){alert('Dodajte barem jedan proizvod.');return}
-    const md=new Date();md.setDate(md.getDate()+5);document.getElementById('date').min=md.toISOString().split('T')[0];
+    document.getElementById('date').min=minDeliveryDate();
   }
   if(step===3){
     let ok=true;
-    ['name','phone','delivery','date'].forEach(f=>{const el=document.getElementById(f);const fd=el.closest('.field');if(!el.value.trim()){fd.classList.add('error');ok=false}else{fd.classList.remove('error')}});
+    ['name','phone','delivery'].forEach(f=>{const el=document.getElementById(f);const fd=el.closest('.field');if(!el.value.trim()){fd.classList.add('error');ok=false}else{fd.classList.remove('error')}});
+    if(!checkDate())ok=false;
     const dv=document.getElementById('delivery').value;
     if(dv&&dv!=='Licno'){const a=document.getElementById('address');if(!a.value.trim()){a.closest('.field').classList.add('error');ok=false}else{a.closest('.field').classList.remove('error')}}
     if(!ok)return;
@@ -458,9 +478,16 @@ function buildSummary(){
   document.getElementById('summaryBody').innerHTML=h;
 }
 
-function fmtDate(ds){if(!ds)return'';const d=new Date(ds);const m=['jan','feb','mar','apr','maj','jun','jul','avg','sep','okt','nov','dec'];return d.getDate()+'. '+m[d.getMonth()]+'. '+d.getFullYear()+'.'}
+function fmtDate(ds){if(!ds)return'';const [y,mo,d]=ds.split('-').map(Number);const m=['jan','feb','mar','apr','maj','jun','jul','avg','sep','okt','nov','dec'];return d+'. '+m[mo-1]+'. '+y+'.'}
 
 async function submitForm(){
+  // Ponovna provera roka — ako je u međuvremenu prošla ponoć, izabrani datum više ne mora biti dozvoljen
+  if (!checkDate()) {
+    goStep(2);
+    alert('Rok za porudžbinu je najmanje ' + MIN_LEAD_DAYS + ' dana. Izaberite datum od ' + fmtDate(minDeliveryDate()) + ' ili kasnije.');
+    return;
+  }
+
   const submitBtn = document.querySelector('.btn-submit');
   submitBtn.disabled = true;
   submitBtn.textContent = 'Šaljem porudžbinu...';
@@ -481,6 +508,7 @@ async function submitForm(){
     delivery: delText,
     address: del.value !== 'Licno' ? document.getElementById('address').value : '',
     date: fmtDate(document.getElementById('date').value),
+    dateISO: document.getElementById('date').value,
     time: timeText,
     occasion: document.getElementById('occasion').value,
     notes: document.getElementById('notes').value
@@ -493,7 +521,12 @@ async function submitForm(){
       body: JSON.stringify(payload)
     });
 
-    if (!resp.ok) throw new Error('Server error');
+    if (!resp.ok) {
+      // Server vraća poruku za kupca (npr. kada je datum pre minimalnog roka)
+      const e = new Error('Server error');
+      try { e.userMsg = (await resp.json()).error; } catch (_) {}
+      throw e;
+    }
 
     document.querySelectorAll('.form-step').forEach(s=>s.classList.remove('active'));
     document.getElementById('successScreen').classList.add('visible');
@@ -502,7 +535,7 @@ async function submitForm(){
     console.error('Submit error:', err);
     submitBtn.disabled = false;
     submitBtn.textContent = 'Pošaljite porudžbinu 💜';
-    alert('Došlo je do greške pri slanju. Pokušajte ponovo ili nam pišite direktno u DM.');
+    alert(err.userMsg || 'Došlo je do greške pri slanju. Pokušajte ponovo ili nam pišite direktno u DM.');
   }
 }
 
