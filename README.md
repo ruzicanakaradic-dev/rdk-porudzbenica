@@ -52,3 +52,11 @@ U Vercel dashboard-u za ovaj projekat:
 ## Google Sheets
 Sheet ID: `1DYsLCakk2BdCkfYC2fSrr0esW6nMXYJkimZW19ADjiM`
 Ružica menja proizvode u Sheet-u → forma automatski prikazuje ažurirane podatke.
+
+## Zaštita porudžbina
+Server (`api/order.js`) ne veruje podacima iz pregledača:
+- **Cene** se uvek računaju po Google Sheet-u (ista tabela koju čita forma). Ako tabela nije dostupna, email stiže sa upozorenjem „Cene NISU proverene". Ako je kupac u formi video drugačiji iznos, email to navodi.
+- **Lažne porudžbine:** skriveno polje za botove, forma mora biti popunjavana bar 8 sekundi, najviše 3 porudžbine sa iste mreže u 10 minuta i najviše 30 ukupno na sat (podešava se na vrhu `api/order.js`).
+- **Provera podataka:** rok od 5 dana, ispravan telefon, dozvoljen način preuzimanja, maksimalne dužine polja.
+
+Ako se menja rok, dodaje grad za dostavu ili menja ograničenje dužine polja, izmeniti i `public/index.html` i `api/order.js`.

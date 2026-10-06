@@ -54,6 +54,7 @@ body{font-family:'Outfit',sans-serif;background:var(--cream-light);color:var(--n
 .field.error input,.field.error select,.field.error textarea{border-color:var(--error);background:#FEF5F4}
 .field .error-msg{font-size:12px;color:var(--error);margin-top:4px;display:none}
 .field.error .error-msg{display:block}
+.hp-field{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
 
 .cat-section{margin-bottom:12px;border-radius:10px;overflow:hidden;border:1.5px solid #E8E2EE;transition:border-color 0.3s}
 .cat-section.open{border-color:var(--purple)}
@@ -207,15 +208,16 @@ body{font-family:'Outfit',sans-serif;background:var(--cream-light);color:var(--n
         <p>Kako da Vam isporučimo porudžbinu?</p>
       </div>
       <div class="card-body">
-        <div class="field"><label for="name">Ime i prezime <span class="req">*</span></label><input type="text" id="name" placeholder="Vaše ime i prezime"><span class="error-msg">Unesite ime i prezime</span></div>
-        <div class="field"><label for="phone">Telefon (WhatsApp) <span class="req">*</span></label><input type="tel" id="phone" placeholder="+381 6x xxx xxxx"><span class="error-msg">Unesite broj telefona</span></div>
+        <div class="field"><label for="name">Ime i prezime <span class="req">*</span></label><input type="text" id="name" placeholder="Vaše ime i prezime" maxlength="100"><span class="error-msg">Unesite ime i prezime</span></div>
+        <div class="field"><label for="phone">Telefon (WhatsApp) <span class="req">*</span></label><input type="tel" id="phone" placeholder="+381 6x xxx xxxx" maxlength="30"><span class="error-msg">Unesite ispravan broj telefona</span></div>
         <div class="field"><label for="delivery">Način preuzimanja <span class="req">*</span></label><select id="delivery" onchange="toggleDF()"><option value="" disabled selected>Izaberite...</option><option value="Beograd">Dostava — Beograd</option><option value="Novi Sad">Dostava — Novi Sad</option><option value="Indjija">Dostava — Inđija</option><option value="Licno">Lično preuzimanje</option></select><span class="error-msg">Izaberite način preuzimanja</span></div>
-        <div class="field" id="addressField"><label for="address">Adresa za dostavu <span class="req">*</span></label><input type="text" id="address" placeholder="Ulica, broj, grad"><span class="error-msg">Unesite adresu</span></div>
+        <div class="field" id="addressField"><label for="address">Adresa za dostavu <span class="req">*</span></label><input type="text" id="address" placeholder="Ulica, broj, grad" maxlength="200"><span class="error-msg">Unesite adresu</span></div>
         <div class="field"><label for="date">Željeni datum isporuke <span class="req">*</span></label><input type="date" id="date"><p class="hint">Najranije 5 dana od momenta poručivanja</p><span class="error-msg">Izaberite datum</span></div>
         <div class="field"><label for="time">Željeno vreme isporuke</label><select id="time"><option value="">Izaberite okvirno vreme...</option><option value="09–12h">Pre podne (09–12h)</option><option value="12–15h">Rano popodne (12–15h)</option><option value="15–18h">Popodne (15–18h)</option><option value="18–20h">Uveče (18–20h)</option><option value="Dogovor">Po dogovoru</option></select><p class="hint">Tačno vreme potvrđujemo u poruci</p></div>
         <div class="field" id="deliveryCostField"><label>Dostava i preuzimanje</label><div class="delivery-info"><strong>Lično preuzimanje</strong> — bez naknade, u dogovoreno vreme u našoj radnji.<br><strong>Dostava na adresu</strong> — uz naknadu za transport po dogovoru, u zavisnosti od lokacije.<br><strong>Besplatna dostava</strong> — za sve porudžbine veće od 10.000 RSD.</div></div>
         <div class="field"><label for="occasion">Povod (opciono)</label><select id="occasion"><option value="">Izaberite ako je primenjivo...</option><option value="Rođendan">Rođendan</option><option value="Slava">Slava</option><option value="Venčanje">Venčanje</option><option value="Krštenje">Krštenje</option><option value="Poklon">Poklon</option><option value="Porodično okupljanje">Porodično okupljanje</option><option value="Drugo">Drugo</option></select></div>
-        <div class="field"><label for="notes">Napomena / posebne želje</label><textarea id="notes" placeholder="Alergije, natpis na torti, broj osoba..."></textarea></div>
+        <div class="field"><label for="notes">Napomena / posebne želje</label><textarea id="notes" placeholder="Alergije, natpis na torti, broj osoba..." maxlength="1000"></textarea></div>
+        <div class="hp-field" aria-hidden="true"><label for="rdkHp">Ne popunjavajte ovo polje</label><input type="text" id="rdkHp" tabindex="-1" autocomplete="off"></div>
         <div class="btn-row"><button class="btn btn-secondary" onclick="goStep(1)">← Nazad</button><button class="btn btn-primary" onclick="goStep(3)">Pregledajte →</button></div>
       </div>
     </div>
@@ -431,6 +433,12 @@ function minDeliveryDate(){
   return new Date(Date.UTC(y,m-1,d+MIN_LEAD_DAYS)).toISOString().split('T')[0];
 }
 
+// Telefon: cifre i + ( ) - . /, od 6 do 15 cifara; razmaci i nevidljivi znakovi (kopiranje iz imenika) se zanemaruju — isto pravilo kao u api/order.js
+function isValidPhone(s){
+  const c=s.replace(/[\s\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g,''),n=c.replace(/\D/g,'').length;
+  return /^[0-9+()\-.\/]+$/.test(c)&&n>=6&&n<=15;
+}
+
 // Proverava datum isporuke i prikazuje grešku na polju; vraća true ako je datum u redu
 function checkDate(){
   const el=document.getElementById('date'),fd=el.closest('.field'),msg=fd.querySelector('.error-msg'),min=minDeliveryDate();
@@ -447,6 +455,7 @@ function goStep(step) {
   if(step===3){
     let ok=true;
     ['name','phone','delivery'].forEach(f=>{const el=document.getElementById(f);const fd=el.closest('.field');if(!el.value.trim()){fd.classList.add('error');ok=false}else{fd.classList.remove('error')}});
+    const ph=document.getElementById('phone');if(ph.value.trim()&&!isValidPhone(ph.value)){ph.closest('.field').classList.add('error');ok=false}
     if(!checkDate())ok=false;
     const dv=document.getElementById('delivery').value;
     if(dv&&dv!=='Licno'){const a=document.getElementById('address');if(!a.value.trim()){a.closest('.field').classList.add('error');ok=false}else{a.closest('.field').classList.remove('error')}}
@@ -511,7 +520,9 @@ async function submitForm(){
     dateISO: document.getElementById('date').value,
     time: timeText,
     occasion: document.getElementById('occasion').value,
-    notes: document.getElementById('notes').value
+    notes: document.getElementById('notes').value,
+    hp: document.getElementById('rdkHp').value,
+    elapsedMs: Math.round(performance.now())
   };
 
   try {
