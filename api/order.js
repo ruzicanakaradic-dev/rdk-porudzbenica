@@ -34,6 +34,22 @@ function fmtDate(s) {
   return `${d}. ${MONTHS[m - 1]}. ${y}.`;
 }
 
+// Sve što je kupac uneo ide u email kao običan tekst, da niko ne može da podmetne HTML (linkove, slike, skripte)
+function esc(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Broj iz unosa; sve što nije broj postaje 0
+function num(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export default async function handler(req, res) {
   // CORS preflight
   if (req.method === 'OPTIONS') {
@@ -59,8 +75,11 @@ export default async function handler(req, res) {
     } = req.body;
 
     // Validate required fields
-    if (!cart || !cart.length || !name || !phone || !delivery || !dateISO) {
+    if (!Array.isArray(cart) || !cart.length || !name || !phone || !delivery || !dateISO) {
       return res.status(400).json({ error: 'Nedostaju obavezni podaci.' });
+    }
+    if (cart.some(item => !item || typeof item !== 'object')) {
+      return res.status(400).json({ error: 'Neispravna porudžbina.' });
     }
 
     // Validate delivery date against the minimum lead time
@@ -79,17 +98,17 @@ export default async function handler(req, res) {
     // Build cart rows for email
     const cartRows = cart.map(item => `
       <tr>
-        <td style="padding:10px 16px;border-bottom:1px solid #F0EBF3;font-size:14px;color:#2D2A33;">${item.product}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #F0EBF3;font-size:13px;color:#6B6573;">${item.catName}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #F0EBF3;font-size:14px;color:#7B5EA7;font-weight:600;text-align:right;">${item.qty} ${item.unit}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #F0EBF3;font-size:14px;color:#7B5EA7;font-weight:600;text-align:right;">${(item.qty * item.price).toLocaleString('sr-RS')} RSD</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #F0EBF3;font-size:14px;color:#2D2A33;">${esc(item.product)}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #F0EBF3;font-size:13px;color:#6B6573;">${esc(item.catName)}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #F0EBF3;font-size:14px;color:#7B5EA7;font-weight:600;text-align:right;">${num(item.qty)} ${esc(item.unit)}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #F0EBF3;font-size:14px;color:#7B5EA7;font-weight:600;text-align:right;">${(num(item.qty) * num(item.price)).toLocaleString('sr-RS')} RSD</td>
       </tr>
     `).join('');
 
     // Delivery cost note
     const deliveryCostNote = delivery === 'Lično preuzimanje'
       ? ''
-      : total >= 10000
+      : num(total) >= 10000
         ? '<p style="color:#27AE60;font-weight:500;">✓ Besplatna dostava</p>'
         : '<p style="color:#C9A96E;">Cenu dostave dogovoriti po lokaciji</p>';
 
@@ -109,19 +128,19 @@ export default async function handler(req, res) {
         <table style="width:100%;border-collapse:collapse;">
           <tr>
             <td style="padding:6px 0;color:#6B6573;font-size:13px;width:120px;">Ime i prezime</td>
-            <td style="padding:6px 0;color:#2D2A33;font-size:14px;font-weight:600;">${name}</td>
+            <td style="padding:6px 0;color:#2D2A33;font-size:14px;font-weight:600;">${esc(name)}</td>
           </tr>
           <tr>
             <td style="padding:6px 0;color:#6B6573;font-size:13px;">Telefon</td>
-            <td style="padding:6px 0;color:#2D2A33;font-size:14px;font-weight:600;">${phone}</td>
+            <td style="padding:6px 0;color:#2D2A33;font-size:14px;font-weight:600;">${esc(phone)}</td>
           </tr>
           <tr>
             <td style="padding:6px 0;color:#6B6573;font-size:13px;">Preuzimanje</td>
-            <td style="padding:6px 0;color:#2D2A33;font-size:14px;font-weight:600;">${delivery}</td>
+            <td style="padding:6px 0;color:#2D2A33;font-size:14px;font-weight:600;">${esc(delivery)}</td>
           </tr>
           ${address ? `<tr>
             <td style="padding:6px 0;color:#6B6573;font-size:13px;">Adresa</td>
-            <td style="padding:6px 0;color:#2D2A33;font-size:14px;font-weight:600;">${address}</td>
+            <td style="padding:6px 0;color:#2D2A33;font-size:14px;font-weight:600;">${esc(address)}</td>
           </tr>` : ''}
           <tr>
             <td style="padding:6px 0;color:#6B6573;font-size:13px;">Datum isporuke</td>
@@ -129,11 +148,11 @@ export default async function handler(req, res) {
           </tr>
           ${time ? `<tr>
             <td style="padding:6px 0;color:#6B6573;font-size:13px;">Vreme</td>
-            <td style="padding:6px 0;color:#2D2A33;font-size:14px;font-weight:600;">${time}</td>
+            <td style="padding:6px 0;color:#2D2A33;font-size:14px;font-weight:600;">${esc(time)}</td>
           </tr>` : ''}
           ${occasion ? `<tr>
             <td style="padding:6px 0;color:#6B6573;font-size:13px;">Povod</td>
-            <td style="padding:6px 0;color:#2D2A33;font-size:14px;font-weight:600;">${occasion}</td>
+            <td style="padding:6px 0;color:#2D2A33;font-size:14px;font-weight:600;">${esc(occasion)}</td>
           </tr>` : ''}
         </table>
       </div>
@@ -158,7 +177,7 @@ export default async function handler(req, res) {
         <!-- Total -->
         <div style="background:linear-gradient(135deg,rgba(123,94,167,0.06),rgba(201,169,110,0.08));border-radius:10px;padding:16px;margin-top:16px;text-align:center;">
           <p style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#6B6573;margin:0 0 4px;">Okvirna cena proizvoda</p>
-          <p style="font-size:28px;font-weight:700;color:#4A3566;margin:0;">${total.toLocaleString('sr-RS')} RSD</p>
+          <p style="font-size:28px;font-weight:700;color:#4A3566;margin:0;">${num(total).toLocaleString('sr-RS')} RSD</p>
           ${deliveryCostNote}
         </div>
       </div>
@@ -167,7 +186,7 @@ export default async function handler(req, res) {
       <!-- Notes -->
       <div style="background:#fff;padding:24px;border-top:1px solid #E8E2EE;">
         <h2 style="color:#4A3566;font-size:16px;margin:0 0 8px;">Napomena kupca</h2>
-        <p style="color:#2D2A33;font-size:14px;line-height:1.6;margin:0;background:#FAF6F0;padding:12px 16px;border-radius:8px;">${notes}</p>
+        <p style="color:#2D2A33;font-size:14px;line-height:1.6;margin:0;background:#FAF6F0;padding:12px 16px;border-radius:8px;">${esc(notes).replace(/\r?\n/g, '<br>')}</p>
       </div>` : ''}
 
       <!-- Footer -->
@@ -181,7 +200,8 @@ export default async function handler(req, res) {
     const { data, error } = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || 'Porudžbine RDK <onboarding@resend.dev>',
       to: [process.env.RESEND_TO_EMAIL || 'ruzinidomacikolaci@gmail.com'],
-      subject: `🎂 Nova porudžbina — ${name} (${date})`,
+      // Naslov je običan tekst: bez novih redova i ograničene dužine
+      subject: `🎂 Nova porudžbina — ${String(name).replace(/[\r\n\t]+/g, ' ').trim().slice(0, 80)} (${date})`,
       html: emailHtml,
     });
 
